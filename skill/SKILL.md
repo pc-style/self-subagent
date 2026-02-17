@@ -177,6 +177,27 @@ CONTEXT:
 | **Reviewer** | "You are a senior code reviewer. Do NOT edit any files." | Code review, security audit |
 | **Planner** | "You are a technical planner. Do NOT edit any files." | Architecture decisions, migration plans |
 
+### Context Sharing (Token Optimization)
+
+When spawning multiple subagents that need the same context (types, guidelines, configs), **do not inline** the text in every prompt. This wastes tokens.
+
+1.  **Pack context once**:
+    ```bash
+    ./skill/context-packer.sh "$TMPDIR/shared-context.md" src/types.ts docs/guidelines.md
+    ```
+
+2.  **Reference it**:
+    ```bash
+    PROMPT="...
+    Read $TMPDIR/shared-context.md for types and guidelines.
+    ..."
+    ```
+
+**Math**:
+- Inline 200 lines of types (2KB) × 5 subagents = 10KB overhead.
+- Shared file (2KB) read once by 5 subagents = 2KB storage + ~50 tokens instruction overhead.
+- **Savings**: ~90% on context tokens.
+
 ## Phase 4: Spawn, Collect, Verify
 
 ### 4a. Spawn a wave
@@ -230,20 +251,37 @@ done
 git diff --stat
 ```
 
-### 4c. Retry failures
+### 4c. Retry failures (Session Resumption)
 
-If a task failed, retry it once with the error output appended:
+If a task fails, **resume the existing session** instead of restarting. This saves tokens (no need to re-read context) and preserves the subagent's mental state.
+
+1.  **Check CLI capabilities**: Does your CLI support `--resume` or persistent sessions?
+    *   Claude: `claude -p --resume <session_id>`
+    *   Codex: `codex exec resume <session_id>`
+
+2.  **Implementation**:
 
 ```bash
 for id in "${FAILED[@]}"; do
+  # Retrieve session ID from previous run's log or output (CLI-specific)
+  SESSION_ID=$(grep "Session ID:" "$TMPDIR/$id.out" | awk '{print $NF}')
   ERROR=$(tail -50 "$TMPDIR/$id.out")
-  RETRY_PROMPT="$ORIGINAL_PROMPT
-
-PREVIOUS ATTEMPT FAILED. Error output:
+  
+  FIX_PROMPT="PREVIOUS ATTEMPT FAILED. Error output:
 $ERROR
 
-Fix the issue and try again."
-  timeout 300 $AGENT_CMD "$RETRY_PROMPT" > "$TMPDIR/$id.retry.out" 2>&1
+Fix the issue. Do not repeat the same mistake."
+
+  if [[ -n "$SESSION_ID" && "$AGENT_CMD" == *"claude"* ]]; then
+    # Resume session (cheaper, faster)
+    timeout 300 $AGENT_CMD --resume "$SESSION_ID" "$FIX_PROMPT" > "$TMPDIR/$id.retry.out" 2>&1
+  else
+    # Fallback: Restart with context injection
+    FULL_PROMPT="$ORIGINAL_PROMPT
+
+$FIX_PROMPT"
+    timeout 300 $AGENT_CMD "$FULL_PROMPT" > "$TMPDIR/$id.retry.out" 2>&1
+  fi
 done
 ```
 
@@ -527,9 +565,42 @@ Please address these issues and ensure:
 4. **Log all scores** - Track quality trends across waves
 5. **Fail fast** - Reject early, don't waste time on bad output
 
-### 4g. Proceed to next wave
+### 4g. Cost & Budget Management
 
-Clear PIDs, spawn the next wave's tasks (whose dependencies are now met), repeat 4a-4d.
+**Prevent runaway costs by tracking token usage and enforcing budgets.**
+
+Subagent fans-out can quickly consume credits if unchecked. Use the cost tracker to monitor spend.
+
+#### Budget Tiers
+
+| Tier | Task Type | Model Class | Cap |
+|------|-----------|-------------|-----|
+| **L1** | Research | Haiku/Mini | $0.01 |
+| **L2** | Edit | Sonnet/GPT-4o | $0.05 |
+| **L3** | Architect | Opus/o1 | $0.50 |
+
+#### Implementation
+
+Use `skill/cost-tracker.sh` in your loop:
+
+```bash
+source skill/cost-tracker.sh
+
+# Check budget before spawning
+if ! check_budget; then
+  echo "Budget exceeded!"
+  exit 1
+fi
+
+# Track after completion
+track_usage "claude-3-sonnet" $INPUT_TOKS $OUTPUT_TOKS "$TASK_ID"
+```
+
+See `skill/references/cost-management.md` for full details.
+
+### 4h. Proceed to next wave
+
+Clear PIDs, spawn the next wave's tasks (whose dependencies are now met), repeat 4a-4f.
 
 ## Advanced Patterns
 
