@@ -86,7 +86,13 @@ all_terminal() {
 dispatch_ready() {
   # Budget Check (Upgrade #2)
   if ! check_budget; then
-    # If budget exceeded, don't start new tasks, but let running ones finish
+    # If budget exceeded, abandon all pending tasks so run_all() can exit
+    for id in "${!TASK_STATUS[@]}"; do
+      if [[ "${TASK_STATUS[$id]}" == "pending" ]]; then
+        TASK_STATUS[$id]="abandoned"
+        echo "ABANDONED: $id (Budget Exceeded)"
+      fi
+    done
     return
   fi
 

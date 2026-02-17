@@ -43,7 +43,7 @@ for file in "${INPUT_FILES[@]}"; do
     echo '```' >> "$OUTPUT_FILE"
     echo "" >> "$OUTPUT_FILE"
 
-    ((COUNT++))
+    COUNT=$((COUNT + 1))
   else
     echo "Warning: Input file not found: $file" >&2
   fi
