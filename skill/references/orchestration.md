@@ -4,7 +4,7 @@ Beyond basic wave-based parallelism. These patterns are modeled on Amp's AgentRu
 
 ## Dependency Graph Scheduler
 
-The core scheduling algorithm. Maintains a graph of tasks and dispatches them as dependencies resolve.
+The core scheduling algorithm. Maintains a graph of tasks and dispatches them as dependencies resolve. Includes diff-based verification and cost budgeting.
 
 ```
 State machine per task:
@@ -14,10 +14,19 @@ State machine per task:
 
 ```bash
 #!/usr/bin/env bash
-# Dependency-aware parallel task scheduler
+# Dependency-aware parallel task scheduler with Cost & Quality Gates
 
-# Resolve paths to verification scripts
+# Resolve paths
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+COST_TRACKER="$SCRIPT_DIR/../cost-tracker.sh"
+
+# Source cost tracker if available (Upgrade #2)
+if [[ -f "$COST_TRACKER" ]]; then
+  source "$COST_TRACKER"
+else
+  check_budget() { return 0; }
+  track_usage() { :; }
+fi
 
 declare -A TASK_STATUS    # id → pending|running|done|failed|abandoned
 declare -A TASK_DEPS      # id → "dep1,dep2,dep3"
@@ -75,6 +84,12 @@ all_terminal() {
 }
 
 dispatch_ready() {
+  # Budget Check (Upgrade #2)
+  if ! check_budget; then
+    # If budget exceeded, don't start new tasks, but let running ones finish
+    return
+  fi
+
   for id in "${!TASK_STATUS[@]}"; do
     [[ "${TASK_STATUS[$id]}" != "pending" ]] && continue
     (( $(count_running) >= MAX_PARALLEL )) && return
@@ -83,6 +98,7 @@ dispatch_ready() {
 
     # Launch
     TASK_STATUS[$id]="running"
+    # Note: If CLI supports JSON output, we could pipe to a handler to extract token usage
     timeout 300 $AGENT_CMD "${TASK_PROMPTS[$id]}" > "$TMPDIR/$id.out" 2>&1 &
     TASK_PIDS[$id]=$!
   done
@@ -95,6 +111,10 @@ reap_finished() {
     if ! kill -0 "$pid" 2>/dev/null; then
       wait "$pid"
       local exit_code=$?
+
+      # Cost Tracking (Upgrade #2)
+      # If we can parse tokens from output (depends on CLI), track it here:
+      # track_usage "claude-3-sonnet" $INPUT_TOKENS $OUTPUT_TOKENS "$id"
 
       if (( exit_code != 0 )); then
         TASK_STATUS[$id]="failed"
@@ -172,7 +192,7 @@ register_task "ci"         "test-auth,test-pay" ".github/ci.yml" "ROLE: executor
 run_all
 ```
 
-The scheduler automatically computes waves, respects dependencies, prevents write conflicts, and throttles concurrency.
+The scheduler automatically computes waves, respects dependencies, prevents write conflicts, checks budget limits, and throttles concurrency.
 
 ## Streaming Results (Process as They Complete)
 
@@ -283,25 +303,57 @@ When retrying, inject the failure context so the subagent can fix its own mistak
 retry_with_context() {
   local id="$1" original_prompt="$2" max_retries="${3:-1}"
   local attempt=0 exit_code
+  local session_id=""
 
   while (( attempt <= max_retries )); do
     local prompt="$original_prompt"
-    if (( attempt > 0 )); then
-      local prev_error=$(tail -80 "$TMPDIR/$id.attempt$((attempt-1)).out")
-      local prev_diff=$(cd "$PROJECT" && git diff --stat 2>/dev/null)
-      prompt="$original_prompt
+    local use_resume=false
 
-RETRY (attempt $((attempt+1))). Previous attempt failed.
+    if (( attempt > 0 )); then
+      local prev_log="$TMPDIR/$id.attempt$((attempt-1)).out"
+      local prev_error=$(tail -80 "$prev_log")
+      
+      # Detect Session ID (Claude Code pattern: "Session ID: <uuid>")
+      session_id=$(grep -oE "Session ID: [a-zA-Z0-9-]+" "$prev_log" | awk '{print $NF}' | tail -1)
+      
+      local fix_instructions="RETRY (attempt $((attempt+1))). Previous attempt failed.
 Error output (last 80 lines):
 $prev_error
 
-Files changed so far:
-$prev_diff
-
 Fix the issue. Do not repeat the same mistake."
+
+      # Enable resume if supported and session ID found
+      if [[ -n "$session_id" ]]; then
+        if [[ "$AGENT_CMD" == *"claude"* ]]; then
+          use_resume=true
+        fi
+      fi
+
+      if [[ "$use_resume" == "true" ]]; then
+        # For resume, we only send the fix instructions, not the whole context
+        prompt="$fix_instructions"
+      else
+        # Fallback: Full context injection (Restart)
+        local prev_diff=$(cd "$PROJECT" && git diff --stat 2>/dev/null)
+        prompt="$original_prompt
+
+$fix_instructions
+
+Files changed so far:
+$prev_diff"
+      fi
     fi
 
-    timeout 300 $AGENT_CMD "$prompt" > "$TMPDIR/$id.attempt$attempt.out" 2>&1
+    # Execute
+    if [[ "$use_resume" == "true" ]]; then
+      # Resume session (cheaper, faster)
+      # Assumes AGENT_CMD allows appending --resume (works for Claude)
+      timeout 300 $AGENT_CMD --resume "$session_id" "$prompt" > "$TMPDIR/$id.attempt$attempt.out" 2>&1
+    else
+      # Standard execution (fresh session)
+      timeout 300 $AGENT_CMD "$prompt" > "$TMPDIR/$id.attempt$attempt.out" 2>&1
+    fi
+
     exit_code=$?
     (( exit_code == 0 )) && { cp "$TMPDIR/$id.attempt$attempt.out" "$TMPDIR/$id.out"; return 0; }
     ((attempt++))

@@ -1,148 +1,105 @@
-# Handoff: Implementing Diff-Based Verification (Upgrade #7)
+# Handoff: Implementing MCP Server Wrapper (Upgrade #5)
 
 ## What We've Done
 
 **Completed:**
-1. **Real-World Test Harness (Upgrade #1)** - Fully built and tested with Codex
-   - Sample repo with 5 TypeScript modules in `test-harness/sample-repo/`
-   - Working test runners for Claude, Codex, Amp, aider
-   - Scoring system (Discovery, Correctness, Parallelism)
-   - Codex test result: 6/10 overall (10 discovery, 6 correctness, 3 parallelism)
 
-2. **Result Quality Gate (Upgrade #3)** - Implemented and working
-   - `skill/quality-gate.sh` script that scores output 0-10
-   - Added to SKILL.md Phase 4e
-   - Criteria: File Scope (4pts), Validation (4pts), Diff Size (2pts)
-   - Threshold: ≥6/10 = ACCEPT, <6/10 = REJECT + retry
+1. **Real-World Test Harness (Upgrade #1)**
+   - Sample repo, runners for Claude/Codex/Amp, scoring system.
+   - Verified functionality.
+
+2. **Result Quality Gate (Upgrade #3)**
+   - `skill/quality-gate.sh` scores outputs 0-10.
+   - Enforces file scope, validation (tsc/lint/test), and diff size.
+
+3. **Diff-Based Verification (Upgrade #7)**
+   - `skill/diff-verify.sh` scanner implemented.
+   - Detects secrets (25+ patterns), rogue edits, and oversized diffs.
+   - Auto-reverts changes on failure.
+
+4. **Cost & Token Budget System (Upgrade #2)**
+   - `skill/cost-tracker.sh` tracks usage and enforces budget limits.
+   - `skill/references/cost-management.md` defines budget tiers.
+   - Integrated budget checks into orchestration.
+
+5. **Session Resumption for Retries (Upgrade #4)**
+   - Updated `skill/SKILL.md` to prioritize `--resume`.
+   - Modified `skill/references/orchestration.md` `retry_with_context` logic.
+   - Detects Session IDs from logs (Claude Code pattern).
+   - Verified with `test-harness/test-resume.sh` (5/5 tests passed).
+
+6. **Prompt Compression & Context Sharing (Upgrade #8)**
+   - Created `skill/context-packer.sh` to aggregate files.
+   - Updated `SKILL.md` Phase 3 with context sharing instructions.
+   - Verified with `test-harness/test-context-sharing.sh` (7/7 tests passed).
 
 **Current Task:**
-Implement **Upgrade #7: Diff-Based Verification** - Extend the quality gate with:
-- Secret/credential detection in diffs (scan for API keys, tokens)
-- Rogue edit detection (only declared targets modified)
-- Auto-revert on verification failure
-- Integration with wave execution (reject before next wave)
+Implement **Upgrade #5: MCP Server Wrapper** - Build a lightweight Model Context Protocol (MCP) server to expose the skill as a set of tools (`spawn_subagent`, `check_status`, `collect_results`). This allows agents like Claude Desktop or VS Code extensions to use the skill without dropping into a raw bash shell.
 
 ## Files to Load
 
 ### Core Implementation
-- `skill/SKILL.md` - Main skill file, Phase 4e needs expansion for diff verification
-- `skill/quality-gate.sh` - Existing quality gate script to extend
-- `skill/references/quality-gate.md` - Reference documentation
-
-### Test Infrastructure  
-- `test-harness/` - Full test harness directory
-- `test-harness/sample-repo/src/*.ts` - 5 modules for testing
-- `test-harness/score-*.sh` - Scoring scripts (patterns to follow)
-- `test-harness/results/codex-*/git_diff.patch` - Example diffs for testing
+- `skill/SKILL.md` - Main skill file.
+- `skill/references/orchestration.md` - Core logic to wrap.
 
 ### Context & Requirements
-- `docs/propositions.md` - Full upgrade #7 specification
-- `docs/HANDOFF.md` - This file (previous handoff context)
-- `docs/AGENTS.md` - Amp architecture reference (subagent patterns)
-- `skill/references/orchestration.md` - Wave execution patterns
+- `docs/propositions.md` - Full upgrade #5 specification.
+- Official MCP SDK documentation (Python or TypeScript).
 
-## Implementation Plan for #7
+## Implementation Plan for #5
 
-### 1. Create `diff-verify.sh` Script
-Extend quality gate with diff analysis:
+### 1. Choose Stack
+Use **Python** with `uv` (as per user rules) and the `mcp` package for quick implementation.
+- `src/server.py`: Main entry point.
 
-```bash
-# Secret detection patterns
-SECRET_PATTERNS=(
-  'api[_-]?key\s*[=:]\s*["\'][^"\']{16,}["\']'
-  'token\s*[=:]\s*["\'][^"\']{20,}["\']'
-  'password\s*[=:]\s*["\'][^"\']+["\']'
-  'sk-[a-zA-Z0-9]{32,}'  # OpenAI key pattern
-  'ghp_[a-zA-Z0-9]{36}'  # GitHub token pattern
-)
+### 2. Define Tools
+Expose the bash scripts as MCP tools:
 
-# Scan diff for secrets
-scan_secrets() {
-  local diff_file="$1"
-  for pattern in "${SECRET_PATTERNS[@]}"; do
-    if grep -E "$pattern" "$diff_file"; then
-      echo "POTENTIAL SECRET DETECTED"
-      return 1
-    fi
-  done
-}
-```
+- `spawn_subagent(prompt: str, write_targets: str, depends_on: str = "")`
+  - Wraps the wave dispatcher logic.
+  - Returns a Task ID.
 
-### 2. Extend Quality Gate
-Add to `quality-gate.sh`:
-- Pre-merge secret scan on git diff
-- Rogue file detection (files outside declared targets)
-- Auto-revert capability: `git checkout -- .` on failure
-- Exit codes: 0=ACCEPT, 1=REJECT, 2=SECRETS_FOUND
+- `check_status(task_id: str)`
+  - Reads `TASK_STATUS` (or file-based equivalent).
+  - Returns "running", "done", "failed".
 
-### 3. Integrate with Wave Execution
-Modify orchestration in `skill/references/orchestration.md`:
-```bash
-# In reap_finished():
-for id in "${!TASK_STATUS[@]}"; do
-  if [[ "${TASK_STATUS[$id]}" == "running" ]]; then
-    if ! kill -0 "${TASK_PIDS[$id]}" 2>/dev/null; then
-      # Run diff verification BEFORE marking done
-      if ! verify_diff "$TMPDIR/$id" "${TASK_WRITES[$id]}"; then
-        TASK_STATUS[$id]="failed"
-        auto_revert "$TMPDIR/$id"
-      else
-        TASK_STATUS[$id]="done"
-      fi
-    fi
-  fi
-done
-```
+- `collect_results(task_id: str)`
+  - Returns content of `output.log` and `diff_verify_report.txt`.
 
-### 4. Secret Detection Patterns
-Create comprehensive pattern list:
-- Generic: `api[_-]?key`, `secret`, `password`, `token`
-- Provider-specific: OpenAI (`sk-`), GitHub (`ghp_`), AWS (`AKIA`)
-- High-entropy strings (use `ent` or `shannon` entropy calculation)
-- Comment markers: `TODO.*remove`, `FIXME.*key`
+### 3. Implementation Details
+The server needs to maintain state (the task graph). Since the bash scripts are currently designed for one-shot execution or interactive loops, we might need to:
+- Adapt `orchestration.md` into a persistent background process or...
+- Have the Python server manage the state and just call individual subagent commands using the CLI profiles.
 
-### 5. Testing
-- Add test case in `test-harness/scenarios/` with embedded secrets
-- Verify gate catches secrets in test run
-- Test auto-revert functionality
+*Decision*: The Python server will act as the Orchestrator, replacing the `while` loop in `orchestration.md`, but reusing the `diff-verify.sh` and `quality-gate.sh` scripts for verification.
 
-## Key Decisions to Preserve
-
-1. **Quality Gate Integration** - Diff verification should be part of quality gate, not separate
-2. **Auto-revert** - On failure, revert changes immediately before proceeding
-3. **Fail Fast** - Stop wave execution if secrets detected
-4. **Pattern Library** - Keep secret patterns extensible (array in script)
-5. **Exit Codes** - Use specific codes: 0=accept, 1=quality fail, 2=secrets found
+### 4. Testing
+- Create `test-harness/test-mcp.py` to simulate an MCP client calling the tools.
 
 ## Technical Constraints
 
-- Must work with temp directories (test harness pattern)
-- Must handle git worktrees (see orchestration.md)
-- Must integrate with existing quality gate scoring
-- Must not break existing test harness
+- Must work with `uv` for dependency management.
+- Must respect the existing `SKILL.md` protocols (verification, cost tracking).
+- The MCP server must be able to spawn the user's CLI (Claude/Amp/etc.) — requires `PATH` access.
 
 ## Next Steps
 
-1. Create `skill/diff-verify.sh` with secret detection
-2. Extend `quality-gate.sh` with diff verification step
-3. Add auto-revert to orchestration.md scheduler
-4. Create test scenario with secrets
-5. Run test harness to verify
+1. Initialize `mcp-server/` directory with `pyproject.toml` (using `uv`).
+2. Implement `src/server.py` using FastMCP or standard MCP SDK.
+3. Map tools to existing bash scripts.
+4. Verify with a test client.
 
-## Reference: Upgrade #7 Specification
+## Reference: Upgrade #5 Specification
 
 From `docs/propositions.md`:
-> After each subagent completes, instead of just checking exit code, parse `git diff` to verify:
-> - Only declared write targets were modified (reject rogue edits)
-> - No secrets/credentials were introduced (scan for patterns like API keys, tokens)
-> - Diff size is proportional to task complexity (a "rename variable" task producing 500 lines of diff = something went wrong)
-> - Auto-revert subagent changes that fail verification before running the next wave.
+> Build a lightweight MCP server (`self-subagent-mcp`) that exposes three tools:
+> - `spawn_subagent(prompt, write_targets, depends_on, timeout)`
+> - `check_status(task_id)` → running/done/failed
+> - `collect_results(task_id)` → stdout + exit code + changed files
+> This makes the skill usable from agents that have MCP access but no direct bash.
 
 ## Current State
 
 - Working directory: `/Users/pcstyle/projects/self-subagent/`
-- Last action: Built quality gate and test harness
-- Test results available: `test-harness/results/codex-*/`
-- All scripts executable and tested
-
-Ready to implement diff verification next.
+- Last action: Completed Prompt Compression (Upgrade #8).
+- All tests passing.
