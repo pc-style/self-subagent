@@ -3,6 +3,11 @@
 # Creates scenarios with secrets, rogue edits, and oversized diffs,
 # then verifies diff-verify.sh catches each one.
 #
+# NOTE: This file intentionally contains fake API keys and tokens as test
+# fixtures. They are not real credentials — they exist solely to test the
+# secret detection scanner. Pre-commit hooks (e.g. Aikido) may flag them;
+# this is expected and can be safely bypassed for this file.
+#
 # Usage: ./test-harness/test-diff-verify.sh
 
 set -euo pipefail
