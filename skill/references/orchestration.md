@@ -314,7 +314,7 @@ retry_with_context() {
       local prev_error=$(tail -80 "$prev_log")
       
       # Detect Session ID (Claude Code pattern: "Session ID: <uuid>")
-      session_id=$(grep -oE "Session ID: [a-zA-Z0-9-]+" "$prev_log" | awk '{print $NF}' | tail -1)
+      session_id=$(grep -oE "Session ID: [a-zA-Z0-9-]+" "$prev_log" 2>/dev/null | awk '{print $NF}' | tail -1 || true)
       
       local fix_instructions="RETRY (attempt $((attempt+1))). Previous attempt failed.
 Error output (last 80 lines):

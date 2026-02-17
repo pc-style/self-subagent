@@ -65,7 +65,7 @@ retry_with_context() {
         # Detect Session ID (Claude Code pattern: "Session ID: <uuid>")
         # We use grep/awk to parse it
         local detected_id
-        detected_id=$(grep -oE "Session ID: [a-zA-Z0-9-]+" "$prev_log" | awk '{print $NF}' | tail -1)
+        detected_id=$(grep -oE "Session ID: [a-zA-Z0-9-]+" "$prev_log" 2>/dev/null | awk '{print $NF}' | tail -1 || true)
 
         if [[ -n "$detected_id" ]]; then
            session_id="$detected_id"
