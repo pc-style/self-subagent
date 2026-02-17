@@ -1,0 +1,254 @@
+{
+  "schemaVersion": 1,
+  "id": "Amp_Subagent_System_Architecture_20260217_050706",
+  "stableId": "86f0d699-a96e-49ed-87c7-66f617a7c53c",
+  "metadata": {
+    "cascadeId": "2b172413-3c77-4bc7-9405-215ba7fbd3f7",
+    "generationSource": "generationWithTraces",
+    "generationTimestamp": "2026-02-17T05:07:06+01:00",
+    "mode": "FAST",
+    "originalPrompt": "Explore: Amp Subagent System Architecture. Core components and interaction patterns of the subagent system\nStart from: subagent.py, core.py, agent_manager.py"
+  },
+  "title": "Amp Subagent System Architecture",
+  "traces": [
+    {
+      "id": "1",
+      "title": "Amp Subagent Spawning Flow",
+      "description": "Core Amp system showing how subagents are created and executed via AgentRunner",
+      "locations": [
+        {
+          "id": "1a",
+          "path": "/Users/pcstyle/amp-extract/node_modules/@sourcegraph/amp/dist/AGENTS.md",
+          "lineNumber": 25,
+          "lineContent": "runLibrarianSubagent()",
+          "title": "Subagent Spawn Entry Point",
+          "description": "The concrete pattern for spawning librarian subagents with tool scoping"
+        },
+        {
+          "id": "1b",
+          "path": "/Users/pcstyle/amp-extract/node_modules/@sourcegraph/amp/dist/AGENTS.md",
+          "lineNumber": 26,
+          "lineContent": "{...AGENT_CONFIGS.librarian, includeTools: availableTools}",
+          "title": "Agent Spec Construction",
+          "description": "Tool sets are scoped per subagent type"
+        },
+        {
+          "id": "1c",
+          "path": "/Users/pcstyle/amp-extract/node_modules/@sourcegraph/amp/dist/AGENTS.md",
+          "lineNumber": 27,
+          "lineContent": "new AgentRunner().run() with inference config + spec + context",
+          "title": "AgentRunner Execution",
+          "description": "Core execution call that creates the subagent process"
+        },
+        {
+          "id": "1d",
+          "path": "/Users/pcstyle/amp-extract/node_modules/@sourcegraph/amp/dist/AGENTS.md",
+          "lineNumber": 27,
+          "lineContent": "pipes output through `map(processLibrarianOutput)`",
+          "title": "Output Processing",
+          "description": "Results are processed and mapped back to parent agent"
+        }
+      ],
+      "traceTextDiagram": "Amp CLI Entry Point\n├── CLI argument parsing (-x, --dangerously-allow-all) \u003c-- /Users/pcstyle/amp-extract/node_modules/@sourcegraph/amp/dist/AGENTS.md:44\n├── Subagent Spawn Request\n│   └── runLibrarianSubagent() \u003c-- 1a\n│       ├── Agent Spec Construction\n│       │   └── {...AGENT_CONFIGS.librarian} \u003c-- 1b\n│       ├── createRunner() inner function \u003c-- /Users/pcstyle/amp-extract/node_modules/@sourcegraph/amp/dist/AGENTS.md:27\n│       │   └── new AgentRunner().run() \u003c-- 1c\n│       └── Output Processing Pipeline\n│           └── map(processLibrarianOutput) \u003c-- 1d\n└── AgentRunner Core System\n    ├── inferenceConfig + spec + context \u003c-- /Users/pcstyle/amp-extract/node_modules/@sourcegraph/amp/dist/AGENTS.md:27\n    ├── toolService coordination \u003c-- /Users/pcstyle/amp-extract/node_modules/@sourcegraph/amp/dist/AGENTS.md:27\n    └── Observable stream with status updates \u003c-- /Users/pcstyle/amp-extract/node_modules/@sourcegraph/amp/dist/AGENTS.md:57",
+      "traceGuide": "# Motivation\n\nAmp needs to **parallelize complex coding tasks** across multiple specialized AI agents. A single agent trying to handle large-scale refactors, multi-file implementations, or concurrent research becomes a bottleneck. The subagent system solves this by spawning focused, fire-and-forget worker agents that can run in parallel, each with specific tool sets and contexts, while the parent agent orchestrates the overall workflow.\n\n# Details\n\nThe subagent spawning process begins with CLI argument parsing to detect execute mode flags like `-x` and `--dangerously-allow-all` [1a]. When a subagent is needed, Amp constructs an **agent specification** that defines which tools the subagent can access - for example, a librarian subagent gets repository tools while a code execution subagent gets file editing tools [1b]. The system then creates an inner runner function that instantiates `AgentRunner` with inference configuration, system prompt, and the agent specification [1c]. This runner executes the subagent in a controlled environment and pipes the output through a processing function that formats results for the parent agent [1d]. The entire system is built around **resource locking** and **dependency management** to prevent conflicts when multiple subagents work on the same codebase simultaneously."
+    },
+    {
+      "id": "2",
+      "title": "Cline Subagent Execution Engine",
+      "description": "Cline's SubagentRunner implementation showing the complete execution lifecycle",
+      "locations": [
+        {
+          "id": "2a",
+          "path": "/Users/pcstyle/cline/src/core/task/tools/subagent/SubagentRunner.ts",
+          "lineNumber": 279,
+          "lineContent": "async run(prompt: string, onProgress: (update: SubagentProgressUpdate) =\u003e void): Promise\u003cSubagentRunResult\u003e",
+          "title": "Subagent Run Entry Point",
+          "description": "Main execution method with progress callback"
+        },
+        {
+          "id": "2b",
+          "path": "/Users/pcstyle/cline/src/core/task/tools/subagent/SubagentRunner.ts",
+          "lineNumber": 305,
+          "lineContent": "const api = buildApiHandler(effectiveApiConfiguration, mode)",
+          "title": "API Handler Creation",
+          "description": "Builds API connection for subagent communication"
+        },
+        {
+          "id": "2c",
+          "path": "/Users/pcstyle/cline/src/core/task/tools/subagent/SubagentRunner.ts",
+          "lineNumber": 340,
+          "lineContent": "const systemPrompt = (await promptRegistry.get(context)) + SUBAGENT_SYSTEM_SUFFIX",
+          "title": "System Prompt Construction",
+          "description": "Builds specialized subagent system prompt"
+        },
+        {
+          "id": "2d",
+          "path": "/Users/pcstyle/cline/src/core/task/tools/subagent/SubagentRunner.ts",
+          "lineNumber": 414,
+          "lineContent": "for await (const chunk of stream)",
+          "title": "Stream Processing Loop",
+          "description": "Processes streaming responses from subagent"
+        },
+        {
+          "id": "2e",
+          "path": "/Users/pcstyle/cline/src/core/task/tools/subagent/SubagentRunner.ts",
+          "lineNumber": 611,
+          "lineContent": "toolResult = await handler.execute(subagentConfig, toolCallBlock)",
+          "title": "Tool Execution",
+          "description": "Executes individual tool calls within subagent context"
+        }
+      ],
+      "traceTextDiagram": "Cline Subagent Execution Engine\n├── run() method entry point \u003c-- 2a\n│   ├── Build API handler for communication \u003c-- 2b\n│   ├── Construct system prompt + suffix \u003c-- 2c\n│   ├── Process streaming response loop \u003c-- 2d\n│   │   ├── Handle usage chunks \u003c-- /Users/pcstyle/cline/src/core/task/tools/subagent/SubagentRunner.ts:416\n│   │   ├── Handle text chunks \u003c-- /Users/pcstyle/cline/src/core/task/tools/subagent/SubagentRunner.ts:434\n│   │   └── Handle tool_calls chunks \u003c-- /Users/pcstyle/cline/src/core/task/tools/subagent/SubagentRunner.ts:438\n│   │       └── Execute tool via handler \u003c-- 2e\n│   └── Return completed result \u003c-- /Users/pcstyle/cline/src/core/task/tools/subagent/SubagentRunner.ts:577\n└── Progress callbacks throughout execution \u003c-- /Users/pcstyle/cline/src/core/task/tools/subagent/SubagentRunner.ts:296\n    └── Stats and status updates \u003c-- /Users/pcstyle/cline/src/core/task/tools/subagent/SubagentRunner.ts:431",
+      "traceGuide": "# Motivation\n\nAI coding agents need to **delegate work** to specialized subagents for parallel processing, but managing these subagents safely is complex. The SubagentRunner solves this by providing a **secure execution sandbox** where subagents can work independently while the parent maintains control. This enables tasks like code exploration, file analysis, and multi-file edits to happen **concurrently** without conflicts, dramatically speeding up complex development workflows.\n\n# Details\n\nThe system starts with the `run()` method [2a] which establishes the execution environment. It first builds an API handler [2b] to communicate with the AI model, then constructs a specialized system prompt [2c] that tells the subagent its role and limitations. The core execution happens in a streaming response loop [2d] that processes three types of chunks: usage statistics, text responses, and tool calls. When tools are invoked, they execute through handlers [2e] with carefully scoped permissions. Throughout execution, progress callbacks provide real-time updates, and the system maintains strict resource limits and error handling to ensure subagents can't compromise the parent session or access unauthorized resources."
+    },
+    {
+      "id": "3",
+      "title": "Self-Subagent Orchestration",
+      "description": "The self-subagent skill showing dependency management and wave-based parallel execution",
+      "locations": [
+        {
+          "id": "3a",
+          "path": "/Users/pcstyle/skills/self-subagent/SKILL.md",
+          "lineNumber": 192,
+          "lineContent": "spawn_task() { timeout 300 $AGENT_CMD \"$prompt\" \u003e \"$TMPDIR/$id.out\" 2\u003e\u00261 \u0026 }",
+          "title": "Task Spawning Function",
+          "description": "Core function to spawn individual subagent tasks"
+        },
+        {
+          "id": "3b",
+          "path": "/Users/pcstyle/skills/self-subagent/references/orchestration.md",
+          "lineNumber": 41,
+          "lineContent": "deps_met() { [[ \"${TASK_STATUS[$dep]}\" != \"done\" ]] \u0026\u0026 return 1 }",
+          "title": "Dependency Checking",
+          "description": "Verifies all dependencies are completed before execution"
+        },
+        {
+          "id": "3c",
+          "path": "/Users/pcstyle/skills/self-subagent/references/orchestration.md",
+          "lineNumber": 53,
+          "lineContent": "write_conflict() { [[ \"$my_file\" == \"$other_file\" ]] \u0026\u0026 return 0 }",
+          "title": "Write Conflict Detection",
+          "description": "Prevents parallel tasks from writing same files"
+        },
+        {
+          "id": "3d",
+          "path": "/Users/pcstyle/skills/self-subagent/references/orchestration.md",
+          "lineNumber": 77,
+          "lineContent": "dispatch_ready() { deps_met \"$id\" || continue; write_conflict \"$id\" \u0026\u0026 continue }",
+          "title": "Task Dispatch Logic",
+          "description": "Dispatches tasks when dependencies met and no conflicts"
+        },
+        {
+          "id": "3e",
+          "path": "/Users/pcstyle/skills/self-subagent/SKILL.md",
+          "lineNumber": 136,
+          "lineContent": "Wave 1: all tasks with 0 unmet dependencies → spawn all, wait all",
+          "title": "Wave Execution Pattern",
+          "description": "Groups tasks into parallel waves based on dependencies"
+        }
+      ],
+      "traceTextDiagram": "Self-Subagent Orchestration System\n├── Task Registration \u0026 State Management \u003c-- /Users/pcstyle/skills/self-subagent/references/orchestration.md:28\n│   ├── register_task() stores metadata \u003c-- /Users/pcstyle/skills/self-subagent/references/orchestration.md:28\n│   ├── TASK_STATUS[] tracks execution state \u003c-- /Users/pcstyle/skills/self-subagent/references/orchestration.md:19\n│   └── TASK_DEPS[] defines dependencies \u003c-- /Users/pcstyle/skills/self-subagent/references/orchestration.md:20\n├── Dependency Resolution Engine \u003c-- /Users/pcstyle/skills/self-subagent/references/orchestration.md:36\n│   ├── deps_met() checks completion state \u003c-- 3b\n│   ├── write_conflict() prevents file clashes \u003c-- 3c\n│   └── dispatch_ready() validates \u0026 launches \u003c-- 3d\n├── Parallel Execution Controller \u003c-- /Users/pcstyle/skills/self-subagent/SKILL.md:180\n│   ├── spawn_task() creates subprocess \u003c-- 3a\n│   ├── timeout wrapper prevents hangs \u003c-- /Users/pcstyle/skills/self-subagent/SKILL.md:192\n│   └── background execution with PIDs \u003c-- /Users/pcstyle/skills/self-subagent/references/orchestration.md:82\n├── Wave-Based Scheduler \u003c-- /Users/pcstyle/skills/self-subagent/SKILL.md:131\n│   ├── Wave 1: zero-dependency tasks \u003c-- 3e\n│   ├── Wave N: dependencies resolved \u003c-- /Users/pcstyle/skills/self-subagent/SKILL.md:137\n│   └── Serial execution within waves \u003c-- /Users/pcstyle/skills/self-subagent/references/orchestration.md:127\n└── Process Monitoring \u0026 Collection \u003c-- /Users/pcstyle/skills/self-subagent/references/orchestration.md:87\n    ├── wait for PIDs \u0026 check exit codes \u003c-- /Users/pcstyle/skills/self-subagent/references/orchestration.md:91\n    ├── collect results from temp files \u003c-- /Users/pcstyle/skills/self-subagent/SKILL.md:224\n    └── promote to next wave or retry \u003c-- /Users/pcstyle/skills/self-subagent/references/orchestration.md:108",
+      "traceGuide": "# Motivation\n\nWhen you need to make complex changes to a codebase - like adding logging to multiple modules, writing tests for several components, or refactoring interconnected systems - doing everything **sequentially** is painfully slow. A single AI agent can only work on one thing at a time, even when tasks are completely independent. The self-subagent system solves this by letting you **spawn parallel copies of yourself** to work on multiple tasks simultaneously, while intelligently managing dependencies and preventing conflicts.\n\n# Details\n\nThe system works through a **dependency graph scheduler** that breaks your complex task into independent sub-tasks. Each task declares what files it will read and write, along with any dependencies on other tasks [3b]. The scheduler then groups tasks into \"waves\" - Wave 1 contains all tasks with no dependencies that can run in parallel [3e], Wave 2 contains tasks whose Wave 1 dependencies completed, and so on.\n\nBefore spawning any tasks, the system performs **conflict detection** to ensure no two parallel tasks try to write the same file [3c]. Each task is launched as a fire-and-forget subprocess with a timeout wrapper [3a] and tracks execution status in shared state arrays. The system monitors process completion, collects results from temporary files, and either promotes tasks to the next wave or retries failures with injected error context.\n\nThe key innovation is that this works with **any AI coding CLI** - it discovers the non-interactive execution mode for whatever tool you're using (Amp, Claude, Cursor, etc.) and adapts the spawning pattern accordingly. This gives you massive parallelization while maintaining safety through resource locking and dependency management."
+    },
+    {
+      "id": "4",
+      "title": "Resource Locking and Parallel Control",
+      "description": "Resource management patterns that enable safe parallel subagent execution",
+      "locations": [
+        {
+          "id": "4a",
+          "path": "/Users/pcstyle/amp-extract/node_modules/@sourcegraph/amp/dist/AGENTS.md",
+          "lineNumber": 61,
+          "lineContent": "Tools declare `serial: true` or `resourceKeys: [{key, mode: \"read\"|\"write\"}]`",
+          "title": "Tool Resource Declaration",
+          "description": "Tools declare their resource requirements and serialization needs"
+        },
+        {
+          "id": "4b",
+          "path": "/Users/pcstyle/amp-extract/node_modules/@sourcegraph/amp/dist/AGENTS.md",
+          "lineNumber": 62,
+          "lineContent": "Two tools sharing a write key on the same resource → serialize",
+          "title": "Write Conflict Rule",
+          "description": "Write operations on same resource are serialized"
+        },
+        {
+          "id": "4c",
+          "path": "/Users/pcstyle/amp-extract/node_modules/@sourcegraph/amp/dist/AGENTS.md",
+          "lineNumber": 63,
+          "lineContent": "Read-read or disjoint keys → parallel",
+          "title": "Parallel Execution Rule",
+          "description": "Read-only or disjoint resources can run in parallel"
+        },
+        {
+          "id": "4d",
+          "path": "/Users/pcstyle/skills/self-subagent/references/orchestration.md",
+          "lineNumber": 76,
+          "lineContent": "(( $(count_running) \u003e= MAX_PARALLEL )) \u0026\u0026 return",
+          "title": "Concurrency Throttling",
+          "description": "Limits maximum concurrent subagents to prevent resource contention"
+        },
+        {
+          "id": "4e",
+          "path": "/Users/pcstyle/skills/self-subagent/references/orchestration.md",
+          "lineNumber": 172,
+          "lineContent": "git worktree add \"$dir\" -b \"subagent/$id\" HEAD --quiet",
+          "title": "Worktree Isolation",
+          "description": "Creates isolated git worktrees for overlapping file writes"
+        }
+      ],
+      "traceTextDiagram": "Resource Management System\n├── Tool Resource Declarations\n│   └── Tools declare resource keys \u003c-- 4a\n├── Resource Conflict Resolution\n│   ├── Write conflict check \u003c-- /Users/pcstyle/skills/self-subagent/references/orchestration.md:46\n│   │   └── Same resource + write key \u003c-- 4b\n│   └── Parallel execution allowed \u003c-- /Users/pcstyle/amp-extract/node_modules/@sourcegraph/amp/dist/AGENTS.md:63\n│       └── Read-only or disjoint keys \u003c-- 4c\n├── Concurrency Control\n│   ├── Count running tasks \u003c-- /Users/pcstyle/skills/self-subagent/references/orchestration.md:60\n│   │   └── Check max parallel limit \u003c-- 4d\n│   └── Task dispatch coordination \u003c-- /Users/pcstyle/skills/self-subagent/references/orchestration.md:73\n└── File Isolation Strategies\n    ├── Git worktree creation \u003c-- /Users/pcstyle/skills/self-subagent/references/orchestration.md:169\n    │   └── Isolated worktree per task \u003c-- 4e\n    └── Merge results back to main \u003c-- /Users/pcstyle/skills/self-subagent/references/orchestration.md:192",
+      "traceGuide": "# Motivation\n\nWhen multiple AI subagents work in parallel, they can **corrupt each other's work** by writing to the same files simultaneously or overwhelm system resources. The resource management system solves this by providing **safe parallel execution** through intelligent resource locking, conflict detection, and isolation strategies.\n\n# Details\n\nThe system uses a **declarative resource model** where tools specify their resource needs upfront [4a]. Each tool declares whether it needs serial execution or specific resource keys with read/write modes. The conflict resolution engine then enforces two simple rules: write operations on the same resource are serialized [4b], while read-only or disjoint resources can run in parallel [4c].\n\n**Concurrency throttling** prevents system overload by tracking running tasks and enforcing a maximum parallel limit [4d]. When tasks must modify overlapping files, the system creates **git worktree isolation** - giving each subagent its own working copy [4e]. This allows true parallel work without file conflicts, later merging results back to the main branch.\n\nThe entire approach enables **massive parallelization** while maintaining data integrity and system stability."
+    },
+    {
+      "id": "5",
+      "title": "Error Recovery and State Management",
+      "description": "Error handling, retry mechanisms, and state tracking across subagent systems",
+      "locations": [
+        {
+          "id": "5a",
+          "path": "/Users/pcstyle/skills/self-subagent/references/orchestration.md",
+          "lineNumber": 243,
+          "lineContent": "retry_with_context() { local prev_error=$(tail -80 \"$TMPDIR/$id.attempt$((attempt-1)).out\")",
+          "title": "Context-Aware Retry",
+          "description": "Retries failed tasks with previous error context injected"
+        },
+        {
+          "id": "5b",
+          "path": "/Users/pcstyle/amp-extract/node_modules/@sourcegraph/amp/dist/AGENTS.md",
+          "lineNumber": 67,
+          "lineContent": "Failed subagent output is summarized (via Gemini) and fed back to the parent agent",
+          "title": "Error Summarization",
+          "description": "Failed subagent outputs are summarized for parent agent analysis"
+        },
+        {
+          "id": "5c",
+          "path": "/Users/pcstyle/cline/src/core/task/tools/subagent/SubagentRunner.ts",
+          "lineNumber": 232,
+          "lineContent": "this.abortRequested = true; this.activeApiAbort?.()",
+          "title": "Subagent Abort Handling",
+          "description": "Cascades abort signals to active subagent processes"
+        },
+        {
+          "id": "5d",
+          "path": "/Users/pcstyle/skills/self-subagent/references/orchestration.md",
+          "lineNumber": 91,
+          "lineContent": "if (!kill -0 \"$pid\" 2\u003e/dev/null; then wait \"$pid\"; if (( $? == 0 )); then TASK_STATUS[$id]=\"done\"",
+          "title": "Process Status Monitoring",
+          "description": "Monitors subagent process completion and updates status"
+        },
+        {
+          "id": "5e",
+          "path": "/Users/pcstyle/cline/src/core/task/tools/subagent/SubagentRunner.ts",
+          "lineNumber": 773,
+          "lineContent": "const didCompact = this.compactConversationForContextWindow(conversation)",
+          "title": "Context Window Recovery",
+          "description": "Compacts conversation history on context overflow errors"
+        }
+      ],
+      "traceTextDiagram": "Error Recovery \u0026 State Management\n├── Subagent Process Monitoring\n│   ├── Process lifecycle tracking\n│   │   └── kill -0 check + wait() \u003c-- 5d\n│   └── Status updates to TASK_STATUS \u003c-- /Users/pcstyle/skills/self-subagent/references/orchestration.md:19\n├── Error Context Injection\n│   ├── Previous error capture \u003c-- /Users/pcstyle/skills/self-subagent/references/orchestration.md:243\n│   │   └── tail -80 error output \u003c-- 5a\n│   └── Retry with context injection \u003c-- /Users/pcstyle/skills/self-subagent/references/orchestration.md:236\n├── Abort Signal Propagation\n│   ├── Abort request received \u003c-- /Users/pcstyle/cline/src/core/task/tools/subagent/SubagentRunner.ts:252\n│   │   └── abortRequested = true \u003c-- 5c\n│   └── Active API abortion\n│       └── activeApiAbort?.() \u003c-- 5c\n├── Context Window Recovery\n│   ├── Context overflow detected \u003c-- /Users/pcstyle/cline/src/core/task/tools/subagent/SubagentRunner.ts:772\n│   │   └── compactConversation() call \u003c-- 5e\n│   └── Conversation truncation \u003c-- /Users/pcstyle/cline/src/core/task/tools/subagent/SubagentRunner.ts:696\n└── Error Summarization\n    └── Gemini summarization \u003c-- 5b",
+      "traceGuide": "# Motivation\n\nWhen you spawn multiple AI subagents to work in parallel, **things will fail**. Processes crash, context windows overflow, resources conflict, and network calls timeout. Without robust error recovery, a single failed subagent can cascade and break the entire parallel workflow, wasting time and leaving tasks incomplete. The system needs to detect failures quickly, inject context for intelligent retries, and gracefully handle aborts without leaving orphaned processes.\n\n# Details\n\nThe error recovery system operates at multiple levels. **Process monitoring** continuously tracks subagent lifecycles using `kill -0` checks and updates a shared `TASK_STATUS` array [5d]. When a process exits, the system determines if it completed successfully or failed.\n\nFor **context-aware retries**, failed outputs are captured using `tail -80` to get the last 80 lines of error output [5a]. This error context is injected into the retry prompt so the subagent can fix its specific mistake rather than repeating the same error [5a].\n\nThe **abort propagation** mechanism ensures clean shutdowns. When `abortRequested` is set to true [5c], the system immediately calls `activeApiAbort?.()` to terminate any active API streams [5c]. This prevents orphaned processes from continuing to consume resources.\n\n**Context window recovery** handles the common problem of subagent conversations growing too large. When `checkContextWindowExceededError` detects an overflow [5e], the system automatically compacts the conversation by removing older messages while preserving essential context [5e].\n\nFinally, **error summarization** uses Gemini to condense failed subagent outputs into concise summaries that are fed back to the parent agent for analysis and decision-making [5b]."
+    }
+  ],
+  "description": "Comprehensive mapping of the Amp Subagent System Architecture covering core spawning flows in [1a], Cline's execution engine in [2a], orchestration patterns in [3a], resource management in [4a], and error recovery mechanisms in [5a].",
+  "mermaidDiagram": "graph TB\n    subgraph AmpCore[\"Amp Core Spawning\"]\n        style AmpCore fill:#a5d8ff\n        1a[\"1a: runLibrarianSubagent\"]\n        1b[\"1b: Agent Spec Construction\"]\n        1c[\"1c: AgentRunner.run\"]\n        1d[\"1d: Output Processing\"]\n        1a --\u003e 1b --\u003e 1c --\u003e 1d\n    end\n\n    subgraph ClineExec[\"Cline Execution Engine\"]\n        style ClineExec fill:#fcc2d7\n        2a[\"2a: SubagentRunner.run\"]\n        2b[\"2b: API Handler Creation\"]\n        2c[\"2c: System Prompt Construction\"]\n        2d[\"2d: Stream Processing Loop\"]\n        2e[\"2e: Tool Execution\"]\n        2a --\u003e 2b --\u003e 2c --\u003e 2d --\u003e 2e\n    end\n\n    subgraph SelfSubagent[\"Self-Subagent Orchestration\"]\n        style SelfSubagent fill:#ffec99\n        3a[\"3a: spawn_task\"]\n        3b[\"3b: Dependency Checking\"]\n        3c[\"3c: Write Conflict Detection\"]\n        3d[\"3d: Task Dispatch Logic\"]\n        3e[\"3e: Wave Execution Pattern\"]\n        3a --\u003e 3b\n        3b --\u003e 3d\n        3c --\u003e 3d\n        3d --\u003e 3e\n    end\n\n    subgraph ResourceLock[\"Resource Locking \u0026 Parallel Control\"]\n        style ResourceLock fill:#b2f2bb\n        4a[\"4a: Tool Resource Declaration\"]\n        4b[\"4b: Write Conflict Rule\"]\n        4c[\"4c: Parallel Execution Rule\"]\n        4d[\"4d: Concurrency Throttling\"]\n        4e[\"4e: Worktree Isolation\"]\n        4a --\u003e 4b\n        4a --\u003e 4c\n        4d -.-\u003e 4e\n    end\n\n    subgraph ErrorRecovery[\"Error Recovery \u0026 State Management\"]\n        style ErrorRecovery fill:#d0bfff\n        5a[\"5a: Context-Aware Retry\"]\n        5b[\"5b: Error Summarization\"]\n        5c[\"5c: Subagent Abort Handling\"]\n        5d[\"5d: Process Status Monitoring\"]\n        5e[\"5e: Context Window Recovery\"]\n        5a --\u003e 5b\n        5c --\u003e 5d\n        5d -.-\u003e 5e\n    end\n\n    Hub[\"Subagent Execution System\"]\n\n    Hub -.-\u003e AmpCore\n    Hub -.-\u003e ClineExec\n    Hub -.-\u003e SelfSubagent\n    Hub -.-\u003e ResourceLock\n    Hub -.-\u003e ErrorRecovery\n\n    1c --\u003e|spawns| 2a\n    2e --\u003e|respects resource constraints| 4a\n    3d --\u003e|uses conflict detection| 4c\n    2d --\u003e|handles failures| 5c\n    3a --\u003e|enables retry| 5a\n    2e --\u003e|manages context| 5e"
+}

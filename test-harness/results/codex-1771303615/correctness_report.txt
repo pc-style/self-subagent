@@ -1,0 +1,12 @@
+Correctness Scoring Report
+==========================
+Score: 6/10
+
+Checks performed:
+- TypeScript compilation
+- Secret/credential scan
+- Error handling patterns
+- Custom error classes
+
+Errors:
+TypeScript compilation failed\n

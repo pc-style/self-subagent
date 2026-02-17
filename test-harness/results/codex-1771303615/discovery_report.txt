@@ -1,0 +1,22 @@
+Discovery Scoring Report
+========================
+Expected files: 5
+Modified files:        5
+Missing expected: 0
+Unexpected files: 0
+
+Score: 10/10
+
+Expected:
+  - src/auth.ts
+  - src/payments.ts
+  - src/user.ts
+  - src/utils.ts
+  - src/api.ts
+
+Modified:
+  - src/api.ts
+  - src/auth.ts
+  - src/payments.ts
+  - src/user.ts
+  - src/utils.ts

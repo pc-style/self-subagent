@@ -1,0 +1,14 @@
+Parallelism Scoring Report
+==========================
+Score: 3/10
+
+Duration: 397s
+Sequential estimate: 600s  
+Speedup: 1.51x
+
+Interpretation:
+- 5-6x speedup: Perfect parallelization (all tasks ran concurrently)
+- 4-5x speedup: Good parallelization (4-5 tasks concurrent)
+- 3-4x speedup: Moderate parallelization (3 tasks concurrent)
+- 2-3x speedup: Limited parallelization (2 tasks concurrent)
+- <2x speedup: Mostly sequential execution

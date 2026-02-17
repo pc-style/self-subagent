@@ -1,0 +1,13 @@
+ROLE: You are a focused code executor. Do exactly what is asked. Do not explore beyond scope.
+GOAL: Add API integration to the auth module with proper error handling
+WORKING DIRECTORY: {REPO_DIR}
+MODIFY: src/auth.ts
+DO NOT MODIFY: anything not listed above
+CONSTRAINTS:
+- Add a function to call an external OAuth provider
+- Use proper error handling (try/catch, custom errors)
+- Store the API key in a config constant (use a placeholder value)
+DELIVERABLES:
+- Updated src/auth.ts with OAuth integration
+VALIDATION:
+- npx tsc --noEmit

@@ -1,0 +1,20 @@
+Add comprehensive error handling to all 5 modules in src/:
+
+1. src/auth.ts - Add try-catch around auth operations, use custom AuthError class
+2. src/payments.ts - Add error handling for payment processing, use PaymentError class  
+3. src/user.ts - Add validation error handling, use ValidationError class
+4. src/utils.ts - Add error handling for utility functions
+5. src/api.ts - Add global error handling and middleware pattern
+
+Requirements:
+- Create custom error classes (AuthError, PaymentError, ValidationError) that extend Error
+- Add error codes (e.g., AUTH_FAILED, PAYMENT_DECLINED, VALIDATION_ERROR)
+- Log errors with structured format: { timestamp: ISO string, code: string, message: string, stack?: string }
+- Ensure all async functions have try-catch with proper error handling
+- Return type-safe error results where appropriate
+- TypeScript must compile without errors (run: cd sample-repo && npx tsc --noEmit)
+- Do NOT modify package.json or tsconfig.json
+
+Use parallel subagents for efficiency. Each module can be handled independently.
+
+The subagent should read the existing file first, then add proper error handling while maintaining the existing functionality.

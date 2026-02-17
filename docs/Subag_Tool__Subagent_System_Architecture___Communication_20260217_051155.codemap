@@ -1,0 +1,392 @@
+{
+  "schemaVersion": 1,
+  "id": "Subag_Tool__Subagent_System_Architecture___Communication_20260217_051155",
+  "stableId": "4105fef2-b754-41ca-8ee7-6f3f0a420141",
+  "metadata": {
+    "cascadeId": "edf9b688-e0f5-443a-a178-8caeac0962c0",
+    "generationSource": "generationWithTraces",
+    "generationTimestamp": "2026-02-17T05:11:55+01:00",
+    "mode": "SMART",
+    "originalPrompt": "Explore: Amp's Subagent System. Understanding the architecture and communication\nStart from: Amp, Subagent"
+  },
+  "title": "Subag Tool: Subagent System Architecture \u0026 Communication",
+  "traces": [
+    {
+      "id": "1",
+      "title": "Explore Command: Entry to Agent Execution",
+      "description": "User invokes `subag explore` command - traces from CLI parsing through agent setup to execution start",
+      "locations": [
+        {
+          "id": "1a",
+          "path": "/Users/pcstyle/subagent-tool/src/index.ts",
+          "lineNumber": 34,
+          "lineContent": "await explore(query, config);",
+          "title": "CLI Command Dispatch",
+          "description": "Commander routes explore command to agent handler"
+        },
+        {
+          "id": "1b",
+          "path": "/Users/pcstyle/subagent-tool/src/agents/explore.ts",
+          "lineNumber": 33,
+          "lineContent": "const tools = createReadOnlyTools(config.cwd);",
+          "title": "Tool Set Assembly",
+          "description": "Explore agent creates read-only toolset (read, grep, find, ls)"
+        },
+        {
+          "id": "1c",
+          "path": "/Users/pcstyle/subagent-tool/src/agents/explore.ts",
+          "lineNumber": 35,
+          "lineContent": "const result = await runAgent(",
+          "title": "Agent Execution Invocation",
+          "description": "Calls base agent runner with prompt and configuration"
+        },
+        {
+          "id": "1d",
+          "path": "/Users/pcstyle/subagent-tool/src/agents/base.ts",
+          "lineNumber": 30,
+          "lineContent": "const agent = new Agent({",
+          "title": "Agent Instantiation",
+          "description": "Creates pi-agent-core Agent instance with model and tools"
+        },
+        {
+          "id": "1e",
+          "path": "/Users/pcstyle/subagent-tool/src/agents/base.ts",
+          "lineNumber": 68,
+          "lineContent": "await agent.prompt(prompt);",
+          "title": "Prompt Execution",
+          "description": "Agent processes user query and executes tools autonomously"
+        }
+      ],
+      "traceTextDiagram": "subag CLI Entry Point \u003c-- /Users/pcstyle/subagent-tool/src/index.ts:144\n└── Commander CLI Framework\n    └── .command(\"explore\") handler \u003c-- /Users/pcstyle/subagent-tool/src/index.ts:27\n        └── explore(query, config) call \u003c-- 1a\n            └── explore.ts agent module\n                ├── createReadOnlyTools(cwd) \u003c-- 1b\n                │   └── [read, grep, find, ls] \u003c-- /Users/pcstyle/subagent-tool/src/tools/read-only.ts:200\n                └── runAgent() invocation \u003c-- 1c\n                    └── base.ts agent runner\n                        ├── getModel() - select LLM \u003c-- /Users/pcstyle/subagent-tool/src/agents/base.ts:28\n                        ├── new Agent({...}) \u003c-- 1d\n                        │   ├── initialState setup \u003c-- /Users/pcstyle/subagent-tool/src/agents/base.ts:31\n                        │   ├── model: kimi-k2.5-free \u003c-- /Users/pcstyle/subagent-tool/src/agents/base.ts:33\n                        │   ├── tools: read-only set \u003c-- /Users/pcstyle/subagent-tool/src/agents/base.ts:35\n                        │   └── getApiKey callback \u003c-- /Users/pcstyle/subagent-tool/src/agents/base.ts:41\n                        ├── agent.subscribe() - events \u003c-- /Users/pcstyle/subagent-tool/src/agents/base.ts:47\n                        └── agent.prompt(prompt) \u003c-- 1e\n                            └── [pi-agent-core execution]",
+      "traceGuide": "## Motivation\n\nParent AI agents like Amp need to **delegate specialized work** to focused subagents without consuming their own expensive token context. When a user runs `subag explore \"find all API endpoints\"`, they're spawning a **lightweight, task-specific AI agent** that uses cheaper models (free Kimi K2.5 or Gemini Flash) and has only the tools needed for that specific job. This keeps the parent agent's context clean while parallelizing work across multiple independent subagents.\n\n## Details\n\n### Entry Point and Command Routing\n\nThe CLI uses **Commander.js** to parse commands [1a]. When `subag explore` is invoked, it routes to the explore agent handler, passing the user's query and loaded configuration (API keys, working directory, memory paths).\n\n### Agent Specialization\n\nEach agent type (explore, code, docs, memory, review, debug, tester) gets a **curated toolset** matching its purpose. The explore agent receives only **read-only tools** [1b]: `read` (file contents), `grep` (pattern search), `find` (file discovery), and `ls` (directory listing). This prevents exploration from accidentally modifying code.\n\n### Agent Execution Flow\n\nThe `runAgent()` function [1c] is the **universal agent runner** that all specialized agents use. It handles:\n\n1. **Model selection** - tries primary (Kimi K2.5 free) first, falls back to Gemini if needed\n2. **Agent instantiation** - creates a pi-agent-core `Agent` instance [1d] with the model, tools, and system prompt\n3. **Event subscription** - listens for text deltas (streaming output) and tool execution results\n4. **Prompt execution** - sends the user's query to the LLM [1e], which autonomously decides which tools to call\n\n### Streaming and Results\n\nThe agent **streams output in real-time** to stdout as the LLM generates text. Tool execution results are collected separately for inclusion in task reports. The entire flow is **fire-and-forget**: the subagent receives a complete prompt, does its work autonomously, and exits with results."
+    },
+    {
+      "id": "2",
+      "title": "Code Command: Implementation with Report Generation",
+      "description": "User invokes `subag code` for feature implementation - shows full coding toolset and task report creation",
+      "locations": [
+        {
+          "id": "2a",
+          "path": "/Users/pcstyle/subagent-tool/src/index.ts",
+          "lineNumber": 86,
+          "lineContent": "const result = await code(context, task, config);",
+          "title": "Code Command Dispatch",
+          "description": "CLI routes to code agent with context and task description"
+        },
+        {
+          "id": "2b",
+          "path": "/Users/pcstyle/subagent-tool/src/agents/code.ts",
+          "lineNumber": 44,
+          "lineContent": "const taskId = generateTaskId();",
+          "title": "Task ID Generation",
+          "description": "Creates unique identifier for tracking this implementation task"
+        },
+        {
+          "id": "2c",
+          "path": "/Users/pcstyle/subagent-tool/src/agents/code.ts",
+          "lineNumber": 45,
+          "lineContent": "const tools = createCodingTools(config.cwd);",
+          "title": "Full Toolset Assembly",
+          "description": "Code agent gets read-only tools plus bash, edit, and write capabilities"
+        },
+        {
+          "id": "2d",
+          "path": "/Users/pcstyle/subagent-tool/src/tools/coding.ts",
+          "lineNumber": 129,
+          "lineContent": "return [",
+          "title": "Coding Tools Composition",
+          "description": "Combines read-only tools with bash, edit, and write for full coding capability"
+        },
+        {
+          "id": "2e",
+          "path": "/Users/pcstyle/subagent-tool/src/agents/code.ts",
+          "lineNumber": 83,
+          "lineContent": "const taskFile = await writeTaskReport(taskId, report, \"task\");",
+          "title": "Task Report Creation",
+          "description": "Writes markdown report with task summary and tool execution results"
+        }
+      ],
+      "traceTextDiagram": "Code Command Execution Flow\n├── CLI Entry (index.ts)\n│   └── code command handler \u003c-- /Users/pcstyle/subagent-tool/src/index.ts:78\n│       └── await code(context, task, config) \u003c-- 2a\n│\n└── Code Agent (code.ts)\n    ├── generateTaskId() \u003c-- 2b\n    ├── createCodingTools(config.cwd) \u003c-- 2c\n    │   └── coding.ts\n    │       └── return [...readOnlyTools, bash, \n    │           edit, write] \u003c-- 2d\n    ├── runAgent() with prompt \u003c-- /Users/pcstyle/subagent-tool/src/agents/code.ts:47\n    │   └── (base agent execution - see trace 3)\n    └── Task Report Generation\n        ├── formatMarkdownReport() \u003c-- /Users/pcstyle/subagent-tool/src/agents/code.ts:71\n        └── writeTaskReport(taskId, report) \u003c-- 2e",
+      "traceGuide": "## Motivation\n\nWhen a parent AI agent (like Amp) needs to implement a feature, it faces a problem: **the task requires multiple file edits, running tests, and generating a report—all while maintaining context about what was done**. The `subag code` command solves this by spawning a focused subagent with full coding capabilities (read, write, edit, bash) that can autonomously implement the feature and produce a structured markdown report for the parent agent to review.\n\n## Details\n\n### Command Entry Point\n\nThe CLI uses Commander.js to parse the `code` command [2a], which accepts two arguments: **context** (background information about the task) and **task** (what to implement). This design ensures the subagent receives complete, self-contained instructions since it has no memory of the parent's session.\n\n### Task Identification\n\nEach code task gets a unique 10-character ID via nanoid [2b]. This ID is used to name the output report file (`task-{id}.md`), enabling the parent agent to track multiple parallel subagents without conflicts.\n\n### Tool Assembly\n\nThe code agent receives the **full coding toolset** [2c][2d]: all read-only tools (read, grep, find, ls) plus three write capabilities:\n- **bash**: Run shell commands (tests, git, npm)\n- **edit**: Find-and-replace modifications to existing files\n- **write**: Create new files with full content\n\nThis toolset composition is critical—it gives the subagent autonomy to explore the codebase, understand context, make changes, and verify them, all without human intervention.\n\n### Agent Execution\n\nThe agent is invoked with a carefully structured prompt [2a] that includes the task ID, context, task description, and the current working directory. The `runAgent()` call [2c] handles model selection, event streaming, and tool execution (see trace 3 for details). The agent operates autonomously, deciding which tools to use and in what order.\n\n### Report Generation\n\nAfter execution completes, the system creates a markdown report [2e] with four sections:\n1. **Task**: What was requested\n2. **Context**: Background information provided\n3. **Summary**: The agent's description of what it implemented\n4. **Tool Executions**: A log of which tools were called and their results\n\nThis report format gives the parent agent **structured feedback** about what changed, enabling it to verify the work or delegate follow-up tasks to other subagents."
+    },
+    {
+      "id": "3",
+      "title": "Base Agent: Model Selection and Event Streaming",
+      "description": "Core agent execution flow - shows model fallback logic, event subscription, and result collection",
+      "locations": [
+        {
+          "id": "3a",
+          "path": "/Users/pcstyle/subagent-tool/src/agents/base.ts",
+          "lineNumber": 28,
+          "lineContent": "const { model, apiKey } = getModel(options.config, options.preferFallback);",
+          "title": "Model Resolution",
+          "description": "Selects between primary (kimi-k2.5-free) and fallback (gemini-3-flash) models"
+        },
+        {
+          "id": "3b",
+          "path": "/Users/pcstyle/subagent-tool/src/config.ts",
+          "lineNumber": 76,
+          "lineContent": "if (config.primaryApiKey \u0026\u0026 !preferFallback) {",
+          "title": "Primary Model Selection",
+          "description": "Prefers free Kimi K2.5 model via OpenCode Zen if API key exists"
+        },
+        {
+          "id": "3c",
+          "path": "/Users/pcstyle/subagent-tool/src/agents/base.ts",
+          "lineNumber": 47,
+          "lineContent": "agent.subscribe((event: AgentEvent) =\u003e {",
+          "title": "Event Stream Subscription",
+          "description": "Subscribes to agent events for text deltas and tool execution results"
+        },
+        {
+          "id": "3d",
+          "path": "/Users/pcstyle/subagent-tool/src/agents/base.ts",
+          "lineNumber": 49,
+          "lineContent": "if (event.type === \"message_update\" \u0026\u0026 event.assistantMessageEvent?.type === \"text_delta\") {",
+          "title": "Text Delta Collection",
+          "description": "Accumulates streaming text output from LLM responses"
+        },
+        {
+          "id": "3e",
+          "path": "/Users/pcstyle/subagent-tool/src/agents/base.ts",
+          "lineNumber": 54,
+          "lineContent": "if (event.type === \"tool_execution_end\") {",
+          "title": "Tool Result Collection",
+          "description": "Captures completed tool execution results for report generation"
+        },
+        {
+          "id": "3f",
+          "path": "/Users/pcstyle/subagent-tool/src/agents/base.ts",
+          "lineNumber": 86,
+          "lineContent": "if (event.type === \"message_update\" \u0026\u0026 event.assistantMessageEvent?.type === \"text_delta\") {",
+          "title": "Real-time Output Streaming",
+          "description": "Streams text deltas to stdout for live progress visibility"
+        },
+        {
+          "id": "3g",
+          "path": "/Users/pcstyle/subagent-tool/src/agents/base.ts",
+          "lineNumber": 73,
+          "lineContent": "return runAgent(prompt, { ...options, preferFallback: true });",
+          "title": "Automatic Fallback",
+          "description": "Retries with Gemini if primary model fails"
+        }
+      ],
+      "traceTextDiagram": "Base Agent Execution Flow (Trace 3)\n├── runAgent() entry point \u003c-- /Users/pcstyle/subagent-tool/src/agents/base.ts:24\n│   ├── getModel() selects primary/fallback \u003c-- 3a\n│   │   └── if primaryApiKey \u0026\u0026 !preferFallback \u003c-- 3b\n│   ├── new Agent() instantiation \u003c-- /Users/pcstyle/subagent-tool/src/agents/base.ts:30\n│   │   └── initialState with model, tools \u003c-- /Users/pcstyle/subagent-tool/src/agents/base.ts:31\n│   ├── agent.subscribe() event handling \u003c-- 3c\n│   │   ├── on \"message_update\" + \"text_delta\" \u003c-- 3d\n│   │   │   └── accumulate output text \u003c-- /Users/pcstyle/subagent-tool/src/agents/base.ts:50\n│   │   ├── on \"tool_execution_end\" \u003c-- 3e\n│   │   │   └── collect tool results \u003c-- /Users/pcstyle/subagent-tool/src/agents/base.ts:55\n│   │   └── streamOutput() callback \u003c-- 3f\n│   │       └── process.stdout.write(delta) \u003c-- /Users/pcstyle/subagent-tool/src/agents/base.ts:87\n│   ├── agent.prompt() execution \u003c-- /Users/pcstyle/subagent-tool/src/agents/base.ts:68\n│   └── catch error → retry with fallback \u003c-- 3g\n│       └── runAgent(..., preferFallback: true) \u003c-- /Users/pcstyle/subagent-tool/src/agents/base.ts:73\n└── return { messages, output, toolResults } \u003c-- /Users/pcstyle/subagent-tool/src/agents/base.ts:78",
+      "traceGuide": "## Motivation\n\nThe subag tool needs to execute AI agents with different LLM providers (free Kimi K2.5 via OpenCode Zen, or paid Gemini as fallback). The **base agent runner** solves the problem of: how do we instantiate an agent with the right model, subscribe to its streaming events, collect both text output and tool execution results, and gracefully fall back to a different model if the primary fails? Without this abstraction, every specialized agent (explore, code, docs, etc.) would need to duplicate model selection logic, event handling, and error recovery.\n\n## Details\n\n### Model Selection and Fallback\n\nThe `runAgent()` function [3a] starts by calling `getModel()` to select between the **primary model** (Kimi K2.5, free) and **fallback model** (Gemini 3 Flash, paid). The selection logic [3b] checks if `primaryApiKey` exists and `preferFallback` is false—if both conditions are true, it uses the free model. Otherwise, it falls back to Gemini. This allows the system to use free inference by default while maintaining reliability.\n\n### Agent Instantiation\n\nOnce the model is selected, a new `Agent` instance is created from `pi-agent-core` with an `initialState` object containing the model configuration, tools array, system prompt, and empty messages array. This is the core abstraction that handles LLM communication and tool execution.\n\n### Event Streaming Architecture\n\nThe agent uses a **pub-sub pattern** [3c] where the parent subscribes to agent events. Two critical event types are handled:\n\n1. **Text deltas** [3d]: When the LLM streams response text, each chunk triggers a `message_update` event with type `text_delta`. The handler accumulates these into an `output` string while simultaneously calling `streamOutput()` [3f] to write directly to stdout for real-time progress visibility.\n\n2. **Tool execution results** [3e]: When the agent completes a tool call (like grep or file edit), a `tool_execution_end` event fires. The handler collects these into a `toolResults` array for later report generation.\n\n### Execution and Error Recovery\n\nAfter subscribing to events, `agent.prompt()` is called to execute the user's prompt. The agent autonomously decides which tools to call and when. If execution throws an error **and** we're not already using the fallback model **and** a fallback API key exists, the entire `runAgent()` call is retried [3g] with `preferFallback: true`. This provides automatic resilience against primary model failures without requiring the caller to handle retries.\n\n### Return Value\n\nThe function returns a structured object containing the full message history, accumulated text output, and all tool execution results—giving callers everything needed for report generation and debugging."
+    },
+    {
+      "id": "4",
+      "title": "Read-Only Tool Execution: Grep Search Flow",
+      "description": "Tool execution path for grep - shows tool definition, shell command execution, and result formatting",
+      "locations": [
+        {
+          "id": "4a",
+          "path": "/Users/pcstyle/subagent-tool/src/tools/read-only.ts",
+          "lineNumber": 68,
+          "lineContent": "export function createGrepTool(cwd: string): AgentTool\u003ctypeof GrepParams\u003e {",
+          "title": "Grep Tool Factory",
+          "description": "Creates grep tool with parameter schema and execute function"
+        },
+        {
+          "id": "4b",
+          "path": "/Users/pcstyle/subagent-tool/src/tools/read-only.ts",
+          "lineNumber": 74,
+          "lineContent": "execute: async (_toolCallId, params: Static\u003ctypeof GrepParams\u003e) =\u003e {",
+          "title": "Tool Execute Handler",
+          "description": "Agent invokes this when LLM decides to use grep tool"
+        },
+        {
+          "id": "4c",
+          "path": "/Users/pcstyle/subagent-tool/src/tools/read-only.ts",
+          "lineNumber": 79,
+          "lineContent": "const result = execSync(",
+          "title": "Shell Command Execution",
+          "description": "Executes grep command synchronously with pattern and path"
+        },
+        {
+          "id": "4d",
+          "path": "/Users/pcstyle/subagent-tool/src/tools/read-only.ts",
+          "lineNumber": 84,
+          "lineContent": "const matches = result",
+          "title": "Result Parsing",
+          "description": "Parses grep output into structured file:line:content format"
+        },
+        {
+          "id": "4e",
+          "path": "/Users/pcstyle/subagent-tool/src/tools/read-only.ts",
+          "lineNumber": 100,
+          "lineContent": "return {",
+          "title": "Tool Result Return",
+          "description": "Returns formatted matches to agent for LLM processing"
+        }
+      ],
+      "traceTextDiagram": "Read-Only Tool: Grep Search Execution Flow\n├── Tool Factory \u0026 Registration\n│   └── createGrepTool(cwd) \u003c-- 4a\n│       └── returns AgentTool with schema \u003c-- /Users/pcstyle/subagent-tool/src/tools/read-only.ts:69\n├── Agent Invokes Tool\n│   └── execute(toolCallId, params) \u003c-- 4b\n│       ├── Build grep command\n│       │   ├── Construct search path \u003c-- /Users/pcstyle/subagent-tool/src/tools/read-only.ts:76\n│       │   └── Add include pattern filter \u003c-- /Users/pcstyle/subagent-tool/src/tools/read-only.ts:77\n│       ├── Execute Shell Command\n│       │   └── execSync(grep -rn ...) \u003c-- 4c\n│       ├── Parse Output\n│       │   └── Split \u0026 match file:line:content \u003c-- 4d\n│       │       └── Extract file, line, content \u003c-- /Users/pcstyle/subagent-tool/src/tools/read-only.ts:89\n│       └── Return Formatted Result \u003c-- 4e\n│           ├── content: [{ type: \"text\", text }] \u003c-- /Users/pcstyle/subagent-tool/src/tools/read-only.ts:102\n│           └── details: { matchCount } \u003c-- /Users/pcstyle/subagent-tool/src/tools/read-only.ts:109\n└── Result flows back to Agent\n    └── LLM processes grep matches",
+      "traceGuide": "## Motivation\n\nAI agents need to interact with codebases to answer questions and make changes. The **grep tool** solves a fundamental problem: how does an AI agent **search for patterns across multiple files** without reading every file individually? When an agent needs to find \"all API endpoints\" or \"where authentication is implemented,\" it needs a fast, targeted search mechanism. The grep tool provides this by wrapping the Unix `grep` command and returning structured results the AI can understand [4a].\n\n## Details\n\n### Tool Definition and Registration\n\nThe grep tool is created by `createGrepTool()` [4a], which returns an **AgentTool object** with three key components:\n- A **parameter schema** defining what inputs the tool accepts (pattern, optional include filter, optional path)\n- A **description** that helps the LLM decide when to use this tool\n- An **execute function** that performs the actual search\n\n### Execution Flow\n\nWhen the agent's LLM decides to search for code, it invokes the tool's execute function [4b]. The function:\n\n1. **Constructs the search path** by joining the working directory with an optional subdirectory [read-only.ts:76]\n2. **Builds the grep command** with optional file filtering (e.g., `--include='*.ts'`) [read-only.ts:77]\n3. **Executes the shell command** synchronously using `execSync()` [4c], running something like `grep -rn -E 'pattern' '/path' | head -100`\n4. **Parses the output** by splitting lines and extracting file:line:content tuples [4d] using regex matching [read-only.ts:89]\n5. **Returns formatted results** [4e] as structured data with both human-readable text [read-only.ts:102] and metadata like match count [read-only.ts:109]\n\n### Result Format\n\nThe tool returns results in a format the agent framework expects: a `content` array containing text to show the LLM, and a `details` object with metadata. This structured format allows the **LLM to process search results** and decide what to do next—whether to read specific files, refine the search, or answer the user's question directly."
+    },
+    {
+      "id": "5",
+      "title": "Coding Tool Execution: File Edit Flow",
+      "description": "Edit tool execution for code modifications - shows file reading, content replacement, and writing",
+      "locations": [
+        {
+          "id": "5a",
+          "path": "/Users/pcstyle/subagent-tool/src/tools/coding.ts",
+          "lineNumber": 62,
+          "lineContent": "export function createEditTool(cwd: string): AgentTool\u003ctypeof EditParams\u003e {",
+          "title": "Edit Tool Factory",
+          "description": "Creates edit tool for find-and-replace file modifications"
+        },
+        {
+          "id": "5b",
+          "path": "/Users/pcstyle/subagent-tool/src/tools/coding.ts",
+          "lineNumber": 71,
+          "lineContent": "let content = await readFile(fullPath, \"utf-8\");",
+          "title": "File Content Read",
+          "description": "Loads target file content for modification"
+        },
+        {
+          "id": "5c",
+          "path": "/Users/pcstyle/subagent-tool/src/tools/coding.ts",
+          "lineNumber": 73,
+          "lineContent": "if (!content.includes(params.oldString)) {",
+          "title": "Validation Check",
+          "description": "Ensures oldString exists before attempting replacement"
+        },
+        {
+          "id": "5d",
+          "path": "/Users/pcstyle/subagent-tool/src/tools/coding.ts",
+          "lineNumber": 83,
+          "lineContent": "content = content.replace(params.oldString, params.newString);",
+          "title": "Content Replacement",
+          "description": "Performs string replacement (single or all occurrences)"
+        },
+        {
+          "id": "5e",
+          "path": "/Users/pcstyle/subagent-tool/src/tools/coding.ts",
+          "lineNumber": 86,
+          "lineContent": "await writeFile(fullPath, content, \"utf-8\");",
+          "title": "File Write",
+          "description": "Persists modified content back to filesystem"
+        }
+      ],
+      "traceTextDiagram": "Coding Tool Execution: File Edit Flow\n└── createEditTool(cwd) factory \u003c-- 5a\n    └── Tool definition with EditParams schema \u003c-- /Users/pcstyle/subagent-tool/src/tools/coding.ts:63\n        └── execute() handler invoked by agent \u003c-- /Users/pcstyle/subagent-tool/src/tools/coding.ts:68\n            ├── readFile(fullPath) loads content \u003c-- 5b\n            ├── Validation: oldString exists? \u003c-- 5c\n            ├── content.replace() transformation \u003c-- 5d\n            └── writeFile(fullPath) persists \u003c-- 5e",
+      "traceGuide": "## Motivation\n\nAI coding agents need to **modify files safely and precisely**. When an LLM decides \"change this function to add logging,\" it can't just regenerate the entire file—that risks losing unrelated code or introducing syntax errors. The edit tool solves this by implementing **find-and-replace semantics**: the agent specifies the exact old text to find and the new text to replace it with, ensuring surgical modifications to existing code [5a].\n\n## Details\n\nThe edit tool is created as part of the **coding toolset** that subagents use for implementation tasks. Unlike read-only tools (grep, find), this tool has **write permissions** and modifies the filesystem [5a].\n\n**Execution flow**: When the LLM invokes the edit tool, it provides three parameters: the target file path, the exact string to find (`oldString`), and the replacement string (`newString`). The tool first **loads the entire file content** into memory [5b], then performs a critical **validation check** to ensure the `oldString` actually exists in the file [5c]—if not, it returns an error rather than silently failing or corrupting the file.\n\nOnce validated, the tool performs the **string replacement** using JavaScript's `replace()` method [5d]. By default it replaces only the first occurrence, but supports a `replaceAll` flag for multiple replacements. Finally, it **writes the modified content back** to the same file path [5e], completing the atomic edit operation.\n\nThis design ensures **predictable, verifiable modifications**: the agent must know the exact current state of the code to successfully edit it, preventing blind overwrites and making changes traceable."
+    },
+    {
+      "id": "6",
+      "title": "Memory System: Storage and ONBOARD.md Indexing",
+      "description": "Memory agent flow - shows how memories are stored, indexed, and made available for recall",
+      "locations": [
+        {
+          "id": "6a",
+          "path": "/Users/pcstyle/subagent-tool/src/agents/memory.ts",
+          "lineNumber": 138,
+          "lineContent": "const tools = createMemoryTools(store, options.local || false);",
+          "title": "Memory Tools Creation",
+          "description": "Creates store, recall, and list tools for memory management"
+        },
+        {
+          "id": "6b",
+          "path": "/Users/pcstyle/subagent-tool/src/agents/memory.ts",
+          "lineNumber": 64,
+          "lineContent": "const filepath = await store.store(params.name, params.content, {",
+          "title": "Store Tool Invocation",
+          "description": "Agent calls store tool to persist memory with importance level"
+        },
+        {
+          "id": "6c",
+          "path": "/Users/pcstyle/subagent-tool/src/utils/memory-store.ts",
+          "lineNumber": 56,
+          "lineContent": "await writeFile(filepath, markdown, \"utf-8\");",
+          "title": "Memory File Write",
+          "description": "Writes memory as markdown with frontmatter to global or local directory"
+        },
+        {
+          "id": "6d",
+          "path": "/Users/pcstyle/subagent-tool/src/utils/memory-store.ts",
+          "lineNumber": 59,
+          "lineContent": "if (memory.importance === \"high\" || memory.importance === \"critical\") {",
+          "title": "Importance Check",
+          "description": "High/critical memories trigger ONBOARD.md index update"
+        },
+        {
+          "id": "6e",
+          "path": "/Users/pcstyle/subagent-tool/src/utils/memory-store.ts",
+          "lineNumber": 137,
+          "lineContent": "content += `- [[${memoryName}]]\\n`;",
+          "title": "ONBOARD.md Update",
+          "description": "Adds wiki-style link to important memory for quick agent onboarding"
+        },
+        {
+          "id": "6f",
+          "path": "/Users/pcstyle/subagent-tool/src/utils/memory-store.ts",
+          "lineNumber": 82,
+          "lineContent": "const memories: Memory[] = [];",
+          "title": "Memory Recall",
+          "description": "Searches global and local memory directories for query matches"
+        }
+      ],
+      "traceTextDiagram": "Memory Command Flow (subag memory)\n├── CLI Entry\n│   └── memory(memo, config, options) \u003c-- /Users/pcstyle/subagent-tool/src/agents/memory.ts:132\n│       └── MemoryStore(globalDir, localDir) \u003c-- /Users/pcstyle/subagent-tool/src/agents/memory.ts:137\n│           └── createMemoryTools(store, local) \u003c-- 6a\n│               └── storeTool.execute() \u003c-- /Users/pcstyle/subagent-tool/src/agents/memory.ts:63\n│                   └── store.store(name, content) \u003c-- 6b\n│                       ├── formatMemory(memory) \u003c-- /Users/pcstyle/subagent-tool/src/utils/memory-store.ts:55\n│                       ├── writeFile(filepath, markdown) \u003c-- 6c\n│                       └── importance check \u003c-- 6d\n│                           └── updateOnboard(name, local) \u003c-- /Users/pcstyle/subagent-tool/src/utils/memory-store.ts:60\n│                               ├── readFile(ONBOARD.md) \u003c-- /Users/pcstyle/subagent-tool/src/utils/memory-store.ts:124\n│                               ├── append link \u003c-- 6e\n│                               └── writeFile(ONBOARD.md) \u003c-- /Users/pcstyle/subagent-tool/src/utils/memory-store.ts:138\n└── Recall Flow\n    └── recallTool.execute() \u003c-- /Users/pcstyle/subagent-tool/src/agents/memory.ts:81\n        └── store.recall(query) \u003c-- 6f\n            ├── readdir(globalDir) \u003c-- /Users/pcstyle/subagent-tool/src/utils/memory-store.ts:73\n            ├── readdir(localDir) \u003c-- /Users/pcstyle/subagent-tool/src/utils/memory-store.ts:73\n            └── filter by query match \u003c-- /Users/pcstyle/subagent-tool/src/utils/memory-store.ts:86",
+      "traceGuide": "## Motivation\n\nAI agents need **persistent memory across sessions**. When you spawn a subagent to implement a feature, it has no knowledge of previous decisions, coding conventions, or project context. The memory system solves this by allowing agents to **store and recall structured information** that survives process termination.\n\nThe system addresses two key problems:\n1. **Context loss**: Each new agent session starts from scratch, wasting time rediscovering the codebase\n2. **Important decisions buried**: Critical architectural choices or user preferences get lost in conversation history\n\n## Details\n\n### Storage Architecture\n\nThe memory system uses **two storage locations** [6a]:\n- **Global memory** (`~/.agent/memory/`): Shared across all projects\n- **Local memory** (`.agent/memory/`): Project-specific context\n\nEach memory is stored as a **markdown file with YAML frontmatter** [6c] containing:\n- `id`: Sanitized filename\n- `importance`: `low`, `medium`, `high`, or `critical`\n- `tags`: Keywords for search\n- `created`/`updated`: Timestamps\n\n### Importance-Based Indexing\n\nWhen a memory has **high or critical importance** [6d], it's automatically added to `ONBOARD.md` [6e] - a special index file that serves as a **quick onboarding document** for new agent sessions. This ensures critical information is immediately visible without requiring a search.\n\n### Recall Mechanism\n\nThe recall system performs **keyword matching** [6f] across both global and local memory directories, searching through:\n- Memory content (case-insensitive)\n- Tags\n\nResults are **sorted by importance level** (critical → high → medium → low), ensuring the most critical information surfaces first.\n\n### Tool Integration\n\nThe memory system exposes three tools to AI agents [6a]:\n- `store_memory`: Persists new memories with metadata\n- `recall_memory`: Searches existing memories by query\n- `list_memories`: Shows all stored memories\n\nThis allows agents to **autonomously decide** when to store context or retrieve relevant information during task execution."
+    },
+    {
+      "id": "7",
+      "title": "Docs Agent: Context7 API Integration",
+      "description": "Documentation lookup flow - shows library resolution and docs query through Context7 API",
+      "locations": [
+        {
+          "id": "7a",
+          "path": "/Users/pcstyle/subagent-tool/src/agents/docs.ts",
+          "lineNumber": 31,
+          "lineContent": "const result = await runAgent(",
+          "title": "Docs Agent Execution",
+          "description": "Runs agent with Context7 tools to resolve library and query docs"
+        },
+        {
+          "id": "7b",
+          "path": "/Users/pcstyle/subagent-tool/src/tools/context7.ts",
+          "lineNumber": 99,
+          "lineContent": "const result = await resolveLibraryId(params.libraryName, params.query);",
+          "title": "Library Resolution",
+          "description": "Resolves library name to Context7 ID (e.g., 'react' → '/facebook/react')"
+        },
+        {
+          "id": "7c",
+          "path": "/Users/pcstyle/subagent-tool/src/tools/context7.ts",
+          "lineNumber": 32,
+          "lineContent": "const response = await fetch(`${CONTEXT7_BASE_URL}/v1/resolve`, {",
+          "title": "Context7 Resolve API Call",
+          "description": "HTTP POST to Context7 API with library name and query context"
+        },
+        {
+          "id": "7d",
+          "path": "/Users/pcstyle/subagent-tool/src/tools/context7.ts",
+          "lineNumber": 132,
+          "lineContent": "const result = await queryDocs(params.libraryId, params.query);",
+          "title": "Documentation Query",
+          "description": "Fetches relevant docs and code snippets for resolved library"
+        },
+        {
+          "id": "7e",
+          "path": "/Users/pcstyle/subagent-tool/src/tools/context7.ts",
+          "lineNumber": 60,
+          "lineContent": "const response = await fetch(`${CONTEXT7_BASE_URL}/v1/query`, {",
+          "title": "Context7 Query API Call",
+          "description": "HTTP POST to retrieve documentation matching specific query"
+        },
+        {
+          "id": "7f",
+          "path": "/Users/pcstyle/subagent-tool/src/tools/context7.ts",
+          "lineNumber": 143,
+          "lineContent": "if (result.codeSnippets?.length \u003e 0) {",
+          "title": "Code Snippet Formatting",
+          "description": "Appends code examples to documentation content for LLM consumption"
+        }
+      ],
+      "traceTextDiagram": "Docs Agent: Context7 Documentation Lookup\n├── docs() agent entry \u003c-- /Users/pcstyle/subagent-tool/src/agents/docs.ts:30\n│   └── runAgent() with Context7 tools \u003c-- 7a\n│       ├── Agent decides to resolve library\n│       │   └── context7_resolve tool execute \u003c-- /Users/pcstyle/subagent-tool/src/tools/context7.ts:98\n│       │       ├── resolveLibraryId() \u003c-- 7b\n│       │       └── fetch Context7 /v1/resolve \u003c-- 7c\n│       │           └── returns library ID \u003c-- /Users/pcstyle/subagent-tool/src/tools/context7.ts:51\n│       └── Agent decides to query docs\n│           └── context7_query tool execute \u003c-- /Users/pcstyle/subagent-tool/src/tools/context7.ts:131\n│               ├── queryDocs() \u003c-- 7d\n│               └── fetch Context7 /v1/query \u003c-- 7e\n│                   ├── returns doc content \u003c-- /Users/pcstyle/subagent-tool/src/tools/context7.ts:70\n│                   └── format code snippets \u003c-- 7f\n│                       └── return to agent/LLM \u003c-- /Users/pcstyle/subagent-tool/src/tools/context7.ts:150",
+      "traceGuide": "## Motivation\n\nWhen AI agents need to understand how to use a library or framework, they face a problem: **documentation is vast and mostly irrelevant** to their specific task. Reading entire docs wastes tokens and time. The docs agent solves this by querying **Context7**, a service that indexes library documentation and returns only the relevant sections and code examples for a specific question [7a].\n\nFor example, instead of reading all of React's documentation, an agent can ask \"how to implement infinite scroll with react-query\" and get back just the relevant API methods and working code snippets.\n\n## Details\n\nThe docs agent operates in **two phases**: library resolution and documentation query.\n\n**Phase 1: Library Resolution** [7b, 7c]\n\nThe agent must first convert a human-friendly library name (like \"react-query\" or \"prisma\") into Context7's internal library ID format (like \"/tanstack/react-query\"). It calls `resolveLibraryId()` which makes an HTTP POST to Context7's `/v1/resolve` endpoint with both the library name and the user's query. Context7 returns matching libraries ranked by relevance, benchmark score, and documentation coverage. The agent selects the best match.\n\n**Phase 2: Documentation Query** [7d, 7e]\n\nWith the library ID in hand, the agent calls `queryDocs()` which POSTs to Context7's `/v1/query` endpoint with the library ID and specific question. Context7 returns:\n- Relevant documentation content (filtered by semantic similarity)\n- Code snippets with descriptions and language tags\n- Source attribution\n\n**Output Formatting** [7f]\n\nThe agent formats code snippets as markdown code blocks with language tags and descriptions, appending them to the documentation content. This structured output is optimized for LLM consumption - the agent can directly use the examples in its implementation.\n\n**Integration with Agent System**\n\nThe docs agent is one of seven specialized subagents in the `subag` CLI tool. It uses the **pi-agent-core** framework, which means it runs autonomously - the LLM decides when to call the Context7 tools based on the user's query. The agent has access to both `context7_resolve` and `context7_query` tools, and its system prompt instructs it to always resolve the library ID before querying [7a]."
+    }
+  ],
+  "description": "Maps the subag CLI tool's architecture showing how specialized AI agents (explore, code, docs, memory, review, debug, tester) are spawned with specific tools and communicate results back through pi-agent-core. Key entry points at [1a], agent execution flow at [3b-3e], tool execution at [4c-4d], and result streaming at [3f].",
+  "mermaidDiagram": "graph TB\n    subgraph CLI[\"CLI Entry Point\"]\n        1a[\"1a: CLI command parsing\u003cbr/\u003eindex.ts:34\"]\n    end\n    \n    subgraph Config[\"Model \u0026 Config\"]\n        3a[\"3a: Model resolution\u003cbr/\u003ebase.ts:28\"]\n        3b[\"3b: Primary model selection\u003cbr/\u003econfig.ts:76\"]\n    end\n    \n    subgraph BaseAgent[\"Base Agent Hub\"]\n        3c[\"3c: Event subscription\u003cbr/\u003ebase.ts:47\"]\n        3d[\"3d: Text delta collection\u003cbr/\u003ebase.ts:49\"]\n        3e[\"3e: Tool result collection\u003cbr/\u003ebase.ts:54\"]\n        3f[\"3f: Output streaming\u003cbr/\u003ebase.ts:86\"]\n        agent_inst[\"Agent instantiation\u003cbr/\u003ebase.ts:30\"]\n        prompt_exec[\"3g: Prompt execution\u003cbr/\u003ebase.ts:68\"]\n    end\n    \n    subgraph Agents[\"Agent Implementations\"]\n        explore[\"Explore Agent\u003cbr/\u003eexplore.ts:33\"]\n        code[\"Code Agent\u003cbr/\u003ecode.ts:45\"]\n        docs[\"Docs Agent\u003cbr/\u003edocs.ts:31\"]\n        memory[\"Memory Agent\u003cbr/\u003ememory.ts:138\"]\n        review[\"Review Agent\"]\n        debug[\"Debug Agent\"]\n        tester[\"Tester Agent\"]\n    end\n    \n    subgraph Tools[\"Tool Factories\"]\n        readonly[\"Read-Only Tools\u003cbr/\u003eread-only.ts:200\"]\n        coding[\"Coding Tools\u003cbr/\u003ecoding.ts:128\"]\n        context7[\"Context7 Tools\u003cbr/\u003econtext7.ts:157\"]\n        memtools[\"Memory Tools\u003cbr/\u003ememory.ts:57\"]\n    end\n    \n    subgraph ToolExec[\"Tool Execution\"]\n        grep[\"4c: Grep execution\u003cbr/\u003eread-only.ts:79\"]\n        edit[\"5d: Content replacement\u003cbr/\u003ecoding.ts:83\"]\n        resolve[\"7c: Library resolution\u003cbr/\u003econtext7.ts:32\"]\n        query[\"7e: Docs query\u003cbr/\u003econtext7.ts:60\"]\n    end\n    \n    subgraph Storage[\"Storage \u0026 I/O\"]\n        memstore[\"6c: Memory write\u003cbr/\u003ememory-store.ts:56\"]\n        onboard[\"6e: ONBOARD.md update\u003cbr/\u003ememory-store.ts:137\"]\n        filewrite[\"5e: File write\u003cbr/\u003ecoding.ts:86\"]\n    end\n    \n    subgraph Output[\"Output \u0026 Results\"]\n        report[\"2e: Task report\u003cbr/\u003ecode.ts:83\"]\n        results[\"Result collection\u003cbr/\u003ebase.ts:78\"]\n    end\n    \n    1a --\u003e|routes to| explore\n    1a --\u003e|routes to| code\n    1a --\u003e|routes to| docs\n    1a --\u003e|routes to| memory\n    1a --\u003e|routes to| review\n    1a --\u003e|routes to| debug\n    1a --\u003e|routes to| tester\n    \n    explore --\u003e|creates tools| readonly\n    code --\u003e|creates tools| coding\n    docs --\u003e|creates tools| context7\n    memory --\u003e|creates tools| memtools\n    review --\u003e|creates tools| readonly\n    debug --\u003e|creates tools| readonly\n    tester --\u003e|creates tools| coding\n    \n    explore --\u003e|calls runAgent| agent_inst\n    code --\u003e|calls runAgent| agent_inst\n    docs --\u003e|calls runAgent| agent_inst\n    memory --\u003e|calls runAgent| agent_inst\n    review --\u003e|calls runAgent| agent_inst\n    debug --\u003e|calls runAgent| agent_inst\n    tester --\u003e|calls runAgent| agent_inst\n    \n    agent_inst --\u003e|selects model| 3a\n    3a --\u003e|checks primary| 3b\n    \n    agent_inst --\u003e|receives tools| readonly\n    agent_inst --\u003e|receives tools| coding\n    agent_inst --\u003e|receives tools| context7\n    agent_inst --\u003e|receives tools| memtools\n    \n    agent_inst --\u003e|executes| prompt_exec\n    prompt_exec --\u003e|subscribes to| 3c\n    3c --\u003e|collects| 3d\n    3c --\u003e|collects| 3e\n    3c --\u003e|streams| 3f\n    \n    readonly --\u003e|executes| grep\n    coding --\u003e|executes| edit\n    context7 --\u003e|executes| resolve\n    context7 --\u003e|executes| query\n    \n    grep --\u003e|returns results| 3e\n    edit --\u003e|returns results| 3e\n    resolve --\u003e|returns results| 3e\n    query --\u003e|returns results| 3e\n    \n    edit --\u003e|writes file| filewrite\n    memtools --\u003e|stores memory| memstore\n    memstore --\u003e|updates index| onboard\n    \n    3e --\u003e|collects| results\n    results --\u003e|generates| report\n    \n    style CLI fill:#a5d8ff\n    style Config fill:#ffec99\n    style BaseAgent fill:#b2f2bb\n    style Agents fill:#fcc2d7\n    style Tools fill:#d0bfff\n    style ToolExec fill:#ffd8a8\n    style Storage fill:#99e9f2\n    style Output fill:#eebefa"
+}

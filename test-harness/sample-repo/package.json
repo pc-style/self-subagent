@@ -1,0 +1,13 @@
+{
+  "name": "sample-repo",
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "build": "tsc --noEmit",
+    "lint": "echo 'No linter configured'",
+    "test": "echo 'No tests configured'"
+  },
+  "devDependencies": {
+    "typescript": "^5.3.0"
+  }
+}
